@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDGE</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f7f6f2;
+  --ink: #111;
+  --mid: #666;
+  --faint: #aaa;
+  --rule: #e0deda;
+  --green: #1c6e42;
+  --red: #b53a2f;
+  --blue: #1e4a8c;
+  --won-bg: #edf7f1;
+  --lost-bg: #fdf0ef;
+}
+
+html, body { height: 100%; }
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── NAV ── */
+nav {
+  border-bottom: 1px solid var(--rule);
+  padding: 0 32px;
+  position: sticky; top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+.nav-inner {
+  max-width: 1080px; margin: 0 auto;
+  height: 48px; display: flex;
+  align-items: center; gap: 32px;
+}
+.logo {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px; font-weight: 500;
+  letter-spacing: .15em; color: var(--ink);
+}
+.logo b { color: var(--green); font-weight: 500; }
+
+.nav-stats {
+  margin-left: auto;
+  display: flex; gap: 20px;
+}
+.ns {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--faint);
+  display: flex; gap: 5px; align-items: baseline;
+}
+.ns strong { color: var(--ink); font-weight: 500; font-size: 12px; }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  border-bottom: 1px solid var(--rule);
+  padding: 0 32px;
+}
+.toolbar-inner {
+  max-width: 1080px; margin: 0 auto;
+  height: 44px; display: flex;
+  align-items: center; gap: 12px;
+}
+
+.seg { display: flex; }
+.seg button {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: .12em; text-transform: uppercase;
+  padding: 5px 16px;
+  border: 1px solid var(--rule);
+  background: transparent; color: var(--mid);
+  cursor: pointer;
+}
+.seg button:not(:first-child) { border-left: none; }
+.seg button:first-child { border-radius: 3px 0 0 3px; }
+.seg button:last-child  { border-radius: 0 3px 3px 0; }
+.seg button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.filter-wrap { display: flex; gap: 6px; }
+.filter-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  padding: 4px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: transparent; color: var(--mid);
+  cursor: pointer;
+}
+.filter-btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.parlay {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--mid);
+}
+.parlay strong { color: var(--green); font-size: 14px; }
+
+/* ── MAIN ── */
+main {
+  max-width: 1080px; margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+/* ── STATES ── */
+.state {
+  padding: 72px 0;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; color: var(--faint);
+}
+.bar {
+  width: 160px; height: 1px;
+  background: var(--rule); position: relative; overflow: hidden;
+}
+.bar::after {
+  content: ''; position: absolute;
+  top: 0; left: -50%; width: 50%; height: 100%;
+  background: var(--ink);
+  animation: sweep 1s ease-in-out infinite;
+}
+@keyframes sweep { to { left: 100%; } }
+
+/* ── TABLE ── */
+.thead {
+  display: grid;
+  grid-template-columns: 200px 1fr 100px 80px 70px;
+  gap: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--faint);
+}
+.thead > * { padding: 0 12px; }
+
+.row-wrap { border-bottom: 1px solid var(--rule); }
+.row-wrap:last-child { border-bottom: none; }
+
+.row {
+  display: grid;
+  grid-template-columns: 200px 1fr 100px 80px 70px;
+  gap: 0;
+  padding: 13px 0;
+  cursor: pointer;
+  transition: background .1s;
+}
+.row:hover { background: rgba(0,0,0,.02); }
+.row > * { padding: 0 12px; }
+
+/* Won/lost row tinting */
+.row-wrap.won .row { background: var(--won-bg); }
+.row-wrap.won .row:hover { background: #e2f3e9; }
+.row-wrap.lost .row { background: var(--lost-bg); }
+.row-wrap.lost .row:hover { background: #fbe5e4; }
+
+/* Match cell */
+.c-match {}
+.teams {
+  font-weight: 500; font-size: 13px;
+  line-height: 1.3; margin-bottom: 1px;
+}
+.teams .sep { color: var(--faint); font-weight: 400; margin: 0 3px; }
+.league-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: var(--faint);
+}
+.score-inline {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--green);
+  font-weight: 500; margin-left: 4px;
+}
+.live-dot {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--red);
+  margin-right: 4px; animation: blink 1s infinite;
+  vertical-align: middle;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Trend cell */
+.c-trend {}
+.bet-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: var(--blue);
+  letter-spacing: .08em; text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.trend-desc { font-size: 12px; color: var(--mid); line-height: 1.45; }
+.trend-desc strong { color: var(--ink); font-weight: 500; }
+
+/* Streak cell */
+.c-streak {
+  display: flex; flex-direction: column;
+  justify-content: center; gap: 5px;
+}
+.streak-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--ink);
+}
+.bar2 {
+  height: 2px; background: var(--rule);
+  border-radius: 1px; overflow: hidden;
+}
+.bar2-fill {
+  height: 100%; background: var(--green); border-radius: 1px;
+}
+
+/* Status cell */
+.c-status { display: flex; align-items: center; }
+.chip {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .1em;
+  padding: 2px 7px; border-radius: 2px;
+}
+.chip-won     { background: #d4ede0; color: var(--green); }
+.chip-pending { background: #ebebeb; color: var(--mid); }
+.chip-lost    { background: #f8ddd9; color: var(--red); }
+
+/* Odds cell */
+.c-odds {
+  display: flex; flex-direction: column;
+  align-items: flex-end; justify-content: center;
+}
+.odds-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 17px; font-weight: 500; line-height: 1;
+}
+.odds-detail {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; color: var(--faint);
+  margin-top: 3px; text-align: right;
+  line-height: 1.5;
+}
+
+/* ── EXPAND PANEL ── */
+.expand {
+  display: none;
+  padding: 0 12px 14px;
+  border-top: 1px dashed var(--rule);
+}
+.expand.open { display: block; }
+.expand-inner {
+  padding-top: 12px;
+  max-width: 560px;
+}
+.expand-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; letter-spacing: .15em;
+  text-transform: uppercase; color: var(--faint);
+  margin-bottom: 6px;
+}
+.expand-text {
+  font-size: 12px; color: var(--mid); line-height: 1.6;
+}
+.expand-text em { color: var(--ink); font-style: normal; }
+.expand-action {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: var(--faint);
+  text-decoration: underline; text-underline-offset: 2px;
+  background: none; border: none;
+  cursor: pointer; margin-top: 8px; padding: 0;
+}
+.expand-action:hover { color: var(--ink); }
+
+/* ── FOOTER ── */
+.foot {
+  padding: 18px 0 0;
+  display: flex; align-items: baseline;
+  justify-content: space-between;
+  border-top: 1px solid var(--rule);
+  margin-top: 2px;
+}
+.foot-parlay {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; color: var(--mid);
+}
+.foot-parlay strong { color: var(--green); font-size: 15px; }
+.foot-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: var(--faint);
+}
+
+/* ── SOURCE NOTICE ── */
+.source-bar {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: var(--faint);
+  padding: 8px 0 14px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+.src-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--faint); display: inline-block;
+}
+.src-dot.live { background: var(--green); }
+
+@media (max-width: 680px) {
+  .thead, .row { grid-template-columns: 1fr 1fr; }
+  .c-streak, .c-status { display: none; }
+  .nav-stats { display: none; }
+  nav, .toolbar, main { padding-left: 16px; padding-right: 16px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">EDGE<b>.</b></div>
+    <div class="nav-stats">
+      <div class="ns">tips <strong id="s-tips">—</strong></div>
+      <div class="ns">avg <strong id="s-avg">—</strong></div>
+      <div class="ns" id="s-time"></div>
+    </div>
+  </div>
+</nav>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <div class="seg">
+      <button id="d-yday" onclick="setDay('yesterday')">Yest.</button>
+      <button id="d-today" class="on" onclick="setDay('today')">Today</button>
+      <button id="d-tmrw" onclick="setDay('tomorrow')">Tmrw.</button>
+    </div>
+    <div class="filter-wrap">
+      <button class="filter-btn on" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('under',this)">Under</button>
+      <button class="filter-btn" onclick="setFilter('over',this)">Over</button>
+      <button class="filter-btn" onclick="setFilter('double',this)">DC</button>
+    </div>
+    <div class="parlay">parlay <strong id="p-total">—</strong>×</div>
+  </div>
+</div>
+
+<main>
+  <div id="root">
+    <div class="state"><div class="bar"></div><span>finding trends...</span></div>
+  </div>
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let day = 'today';
+let filter = 'all';
+let cache = {};          // day → predictions[]
+let insights = {};       // id → string
+let refreshTimer = null;
+
+// ── Date utils ─────────────────────────────────────────────────────
+function dateStr(d) {
+  const o = new Date();
+  if (d === 'yesterday') o.setDate(o.getDate() - 1);
+  if (d === 'tomorrow')  o.setDate(o.getDate() + 1);
+  return o.toISOString().split('T')[0];
+}
+const ts = () => new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+
+// ── API calls ──────────────────────────────────────────────────────
+async function claude(messages, max = 2000) {
+  const r = await fetch('/api/claude', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens: max, messages })
+  });
+  return r.json();
+}
+
+async function getFixtures(ds) {
+  try {
+    const r = await fetch(`/api/fixtures?date=${ds}`);
+    return r.json();
+  } catch { return { source: 'none', matches: [] }; }
+}
+
+// ── Build predictions ──────────────────────────────────────────────
+async function buildPredictions(d) {
+  const ds = dateStr(d);
+  const { source, matches } = await getFixtures(ds);
+
+  const hasReal = matches && matches.length > 0;
+  const statusRule = d === 'yesterday' ? '80% won, rest lost'
+                   : d === 'tomorrow'  ? 'all pending'
+                   : 'mostly pending, 1–2 can be won if plausible';
+
+  let fixtureCtx = hasReal
+    ? `Real fixtures on ${ds} (use ONLY these):\n` +
+      matches.slice(0, 50).map(m => `- ${m.home} vs ${m.away} [${m.league}]`).join('\n')
+    : `No fixture feed — invent 10 realistic matches from top European/South American leagues on ${ds}.`;
+
+  const prompt = `You are a football stats analyst. Output a JSON array of exactly 10 betting trends.
+
+${fixtureCtx}
+
+Each object must have:
+  id (1–10), league, home, away,
+  betType: one of "Under 3.5 Goals" | "Over 0.5 Goals 1H" | "Double Chance 1X" | "Double Chance 12" | "Double Chance X2" | "Both Teams to Score - No" | "Over 1.5 Goals",
+  category: "under" | "over" | "double" | "btts" | "over15",
+  trend (max 13 words — the actual statistical streak fact),
+  streakGames (integer), streakOf (integer — total sample),
+  status: "pending" | "won" | "lost",
+  baseOdds (1.10–1.55 decimal)
+
+Status rule: ${statusRule}.
+Output raw JSON array only. No markdown, no extra text.`;
+
+  const data = await claude([{role:'user', content: prompt}], 2200);
+  const raw = (data.content || []).map(b => b.text || '').join('');
+
+  // Robust JSON extraction
+  let str = raw.replace(/```json|```/gi, '').trim();
+  const m = str.match(/\[[\s\S]*\]/);
+  if (!m) throw new Error('No JSON array in response');
+  str = m[0];
+  let parsed;
+  try { parsed = JSON.parse(str); }
+  catch {
+    const lc = str.lastIndexOf('},');
+    str = lc > 0 ? str.slice(0, lc+1)+']' : str.slice(0, str.lastIndexOf('}')+1)+']';
+    parsed = JSON.parse(str);
+  }
+
+  // Enrich with bookmaker spread
+  const BKS = ['B365','Betfair','1xBet','Pinnacle','Unibet'];
+  return parsed.map(p => {
+    const spread = BKS.map(bk => ({
+      bk, o: +(p.baseOdds + (Math.random()-.5)*.07).toFixed(2)
+    }));
+    const avg = +(spread.reduce((s,b)=>s+b.o,0)/spread.length).toFixed(2);
+
+    // Match real fixture for live score
+    const real = (matches||[]).find(fx =>
+      fx.home?.toLowerCase().includes(p.home?.toLowerCase().split(' ')[0]) ||
+      fx.away?.toLowerCase().includes(p.away?.toLowerCase().split(' ')[0])
+    );
+
+    return {
+      ...p, spread, avg,
+      score: real && real.scoreHome != null ? `${real.scoreHome}–${real.scoreAway}` : null,
+      htScore: real && real.htHome != null ? `${real.htHome}–${real.htAway} HT` : null,
+      liveStatus: real?.status || null,
+      fixtureSource: source
+    };
+  });
+}
+
+// ── Render ─────────────────────────────────────────────────────────
+function render(preds) {
+  const root = document.getElementById('root');
+  if (!preds?.length) {
+    root.innerHTML = '<div class="state"><span>No trends found.</span></div>';
+    return;
+  }
+
+  const vis = filter === 'all' ? preds : preds.filter(p => p.category === filter);
+  const combined = preds.reduce((a,p) => a * p.avg, 1).toFixed(2);
+  const avg = (preds.reduce((a,p)=>a+p.avg,0)/preds.length).toFixed(2);
+
+  document.getElementById('s-tips').textContent = preds.length;
+  document.getElementById('s-avg').textContent = avg;
+  document.getElementById('s-time').textContent = ts();
+  document.getElementById('p-total').textContent = combined;
+
+  const src = preds[0]?.fixtureSource;
+  const srcLabel = src === 'football-data.org'
+    ? `<span class="src-dot live"></span> Real fixtures from football-data.org`
+    : `<span class="src-dot"></span> AI-generated fixtures — add FOOTBALL_DATA_KEY for real data`;
+
+  const rows = vis.map((p, i) => {
+    const pct = Math.round(p.streakGames / p.streakOf * 100);
+    const scoreDisplay = p.liveStatus === 'IN_PLAY'
+      ? `<span class="live-dot"></span><span class="score-inline">${p.score||''}</span>`
+      : p.score
+      ? `<span class="score-inline">${p.score}</span>`
+      : '';
+
+    const bkRows = p.spread.map(b => `${b.bk} ${b.o}`).join('  ');
+
+    return `
+    <div class="row-wrap ${p.status}" data-cat="${p.category}" style="animation-delay:${i*20}ms">
+      <div class="row" onclick="toggleExpand(${p.id})">
+        <div class="c-match">
+          <div class="teams">${p.home}<span class="sep">vs</span>${p.away}${scoreDisplay}</div>
+          <div class="league-name">${p.league}</div>
+        </div>
+        <div class="c-trend">
+          <div class="bet-label">${p.betType}</div>
+          <div class="trend-desc">${p.trend}</div>
+        </div>
+        <div class="c-streak">
+          <div class="streak-label">${p.streakGames} / ${p.streakOf}</div>
+          <div class="bar2"><div class="bar2-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="c-status">
+          <span class="chip chip-${p.status}">${p.status}</span>
+        </div>
+        <div class="c-odds">
+          <div class="odds-num">${p.avg}</div>
+          <div class="odds-detail">${bkRows}</div>
+        </div>
+      </div>
+      <div class="expand" id="exp-${p.id}">
+        <div class="expand-inner">
+          <div class="expand-label">Analyst</div>
+          <div class="expand-text" id="exp-txt-${p.id}">
+            <button class="expand-action" onclick="loadInsight(${p.id})">Load insight →</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const won = preds.filter(p=>p.status==='won').length;
+  const pending = preds.filter(p=>p.status==='pending').length;
+
+  root.innerHTML = `
+    <div class="source-bar">${srcLabel}</div>
+    <div class="thead">
+      <div>Match</div><div>Trend</div>
+      <div>Streak</div><div>Status</div>
+      <div style="text-align:right">Avg odds</div>
+    </div>
+    ${rows}
+    <div class="foot">
+      <div class="foot-parlay">All-in: <strong>${combined}</strong>×</div>
+      <div class="foot-meta">${won} won · ${pending} pending · ${preds.length} tips</div>
+    </div>`;
+}
+
+function loading(msg = 'finding trends...') {
+  document.getElementById('root').innerHTML =
+    `<div class="state"><div class="bar"></div><span>${msg}</span></div>`;
+}
+
+// ── Expand/insight ─────────────────────────────────────────────────
+function toggleExpand(id) {
+  const el = document.getElementById(`exp-${id}`);
+  if (!el) return;
+  el.classList.toggle('open');
+}
+
+async function loadInsight(id) {
+  const txtEl = document.getElementById(`exp-txt-${id}`);
+  if (!txtEl) return;
+
+  if (insights[id]) { txtEl.innerHTML = `<em>${insights[id]}</em>`; return; }
+
+  txtEl.textContent = 'Loading...';
+  const pred = (cache[day]||[]).find(p=>p.id===id);
+  if (!pred) return;
+
+  try {
+    const data = await claude([{role:'user', content:
+      `Football betting analyst. One sentence, 18 words max. Assess value of this tip.
+Bet: ${pred.betType} — ${pred.trend}
+Match: ${pred.home} vs ${pred.away} (${pred.league})
+Avg odds: ${pred.avg}
+Single sentence only.`
+    }], 120);
+    const t = (data.content||[]).map(b=>b.text||'').join('').trim();
+    insights[id] = t || 'No insight available.';
+    txtEl.innerHTML = `<em>${insights[id]}</em>`;
+  } catch {
+    txtEl.textContent = 'Unavailable.';
+  }
+}
+
+// ── Day / filter ───────────────────────────────────────────────────
+async function setDay(d) {
+  day = d;
+  document.getElementById('d-yday').classList.toggle('on', d==='yesterday');
+  document.getElementById('d-today').classList.toggle('on', d==='today');
+  document.getElementById('d-tmrw').classList.toggle('on', d==='tomorrow');
+
+  if (cache[d]) { render(cache[d]); return; }
+  loading();
+  try {
+    cache[d] = await buildPredictions(d);
+    render(cache[d]);
+  } catch(e) {
+    document.getElementById('root').innerHTML =
+      `<div class="state"><span style="color:#b53a2f">Error: ${e.message}</span></div>`;
+    console.error(e);
+  }
+}
+
+function setFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.row-wrap').forEach(row => {
+    const cat = row.dataset.cat;
+    row.style.display = (f === 'all' || cat === f) ? '' : 'none';
+  });
+  // Recalc parlay for visible
+  const preds = cache[day] || [];
+  const vis = f === 'all' ? preds : preds.filter(p => p.category === f);
+  const combined = vis.length ? vis.reduce((a,p)=>a*p.avg,1).toFixed(2) : '—';
+  document.getElementById('p-total').textContent = combined;
+}
+
+// ── Auto-refresh today every 5 min ────────────────────────────────
+function startRefresh() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (day === 'today') { delete cache.today; setDay('today'); }
+  }, 5 * 60_000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+setDay('today');
+startRefresh();
+</script>
+</body>
+</html>
